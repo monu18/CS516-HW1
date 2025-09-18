@@ -1,4 +1,9 @@
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
+import json
+from moments.ml_services import process_uploaded_image
+
+
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, \
+    send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.orm import with_parent
@@ -118,10 +123,30 @@ def get_avatar(filename):
     return send_from_directory(current_app.config['AVATARS_SAVE_PATH'], filename)
 
 
+# @main_bp.route('/upload', methods=['GET', 'POST'])
+# @login_required
+# @confirm_required
+# @permission_required('UPLOAD')
+# def upload():
+#     if request.method == 'POST':
+#         if 'file' not in request.files:
+#             return 'No image.', 400
+#         f = request.files.get('file')
+#         if not validate_image(f.filename):
+#             return 'Invalid image.', 400
+#         filename = rename_image(f.filename)
+#         f.save(current_app.config['MOMENTS_UPLOAD_PATH'] / filename)
+#         filename_s = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['small'])
+#         filename_m = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['medium'])
+#         photo = Photo(
+#             filename=filename, filename_s=filename_s, filename_m=filename_m, author=current_user._get_current_object()
+#         )
+#         db.session.add(photo)
+#         db.session.commit()
+#     return render_template('main/upload.html')
+
 @main_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
-@confirm_required
-@permission_required('UPLOAD')
 def upload():
     if request.method == 'POST':
         if 'file' not in request.files:
@@ -129,17 +154,29 @@ def upload():
         f = request.files.get('file')
         if not validate_image(f.filename):
             return 'Invalid image.', 400
+
         filename = rename_image(f.filename)
-        f.save(current_app.config['MOMENTS_UPLOAD_PATH'] / filename)
+        image_path = current_app.config['MOMENTS_UPLOAD_PATH'] / filename
+        f.save(image_path)
+
         filename_s = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['small'])
         filename_m = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['medium'])
+
+        # Process image with ML
+        ml_results = process_uploaded_image(image_path)
+
         photo = Photo(
-            filename=filename, filename_s=filename_s, filename_m=filename_m, author=current_user._get_current_object()
+            filename=filename,
+            filename_s=filename_s,
+            filename_m=filename_m,
+            author=current_user._get_current_object(),
+            alt_text=ml_results['alt_text'],
+            detected_objects=json.dumps(ml_results['objects']) if ml_results['objects'] else None
         )
         db.session.add(photo)
         db.session.commit()
-    return render_template('main/upload.html')
 
+    return render_template('main/upload.html')
 
 @main_bp.route('/photo/<int:photo_id>')
 def show_photo(photo_id):
@@ -426,3 +463,17 @@ def delete_tag(photo_id, tag_id):
 
     flash('Tag deleted.', 'info')
     return redirect(url_for('.show_photo', photo_id=photo_id))
+
+
+@main_bp.route('/search')
+def search():
+    query = request.args.get('q', '').strip().lower()
+    photos = []
+
+    if query:
+        # Search in detected objects (stored as JSON)
+        photos = Photo.query.filter(
+            Photo.detected_objects.contains(f'"{query}"')
+        ).order_by(Photo.created_at.desc()).all()
+
+    return render_template('main/search.html', photos=photos, query=query)

@@ -170,3 +170,8 @@ uploads/avatars/*
 logs/*
 !logs/.gitkeep
 whooshee
+# Add API credentials to your existing .gitignore
+echo "" >> .gitignore
+echo "# API credentials (IMPORTANT - don't commit!)" >> .gitignore
+echo "api_config.py" >> .gitignore
+echo "*.key" >> .gitignore

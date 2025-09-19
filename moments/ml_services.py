@@ -142,15 +142,16 @@ def detect_objects(image_path: Path) -> List[str]:
 def process_uploaded_image(image_path: Path) -> Dict[str, any]:
     """
     Process an uploaded image to generate both alt text and detect objects.
-
-    Args:
-        image_path: Path to the uploaded image
-
-    Returns:
-        Dictionary containing 'alt_text' and 'objects'
     """
+    print(f"Processing image: {image_path}")
+    print(f"Endpoint configured: {AZURE_VISION_ENDPOINT[:30]}...")
+    print(f"Key configured: {AZURE_VISION_KEY[:10]}...")
+
     alt_text = generate_alt_text(image_path)
+    print(f"Generated alt text: {alt_text}")
+
     objects = detect_objects(image_path)
+    print(f"Detected objects: {objects}")
 
     return {
         'alt_text': alt_text,

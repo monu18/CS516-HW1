@@ -17,13 +17,15 @@
         href="{{ url_for('.search', q=q, category='user') }}">User</a>
       <a class="nav-item nav-link {% if category == 'tag' %}active{% endif %}"
         href="{{ url_for('.search', q=q, category='tag') }}">Tag</a>
+      <a class="nav-item nav-link {% if category == 'objects' %}active{% endif %}"
+        href="{{ url_for('.search', q=q, category='objects') }}">Objects</a>
     </div>
   </div>
   <div class="col-md-9">
     {% if results %}
       <h5>{{ results|length }} results</h5>
       {% for item in results %}
-      {% if category == 'photo' %}
+      {% if category == 'photo' or category == 'objects' %}
         {{ photo_card(item) }}
       {% elif category == 'user' %}
         {{ user_card(item) }}

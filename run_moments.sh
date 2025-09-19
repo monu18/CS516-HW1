@@ -16,4 +16,4 @@ pdm run flask init-app
 pdm run flask lorem
 
 # Run app
-pdm run flask run --port 5000
+pdm run flask run --port 5002

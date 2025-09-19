@@ -54,23 +54,84 @@ def explore():
 
 @main_bp.route('/search')
 def search():
-    q = request.args.get('q').strip()
+    q = request.args.get('q', '').strip()
     if not q:
         flash('Enter keyword about photo, user or tag.', 'warning')
         return redirect_back()
 
     category = request.args.get('category', 'photo')
+    print(f"SEARCH DEBUG - Query: '{q}', Category: '{category}'")
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config['MOMENTS_SEARCH_RESULT_PER_PAGE']
+
     # TODO: add SQLAlchemy 2.x support to Flask-Whooshee then update the following code
     if category == 'user':
         pagination = User.query.whooshee_search(q).paginate(page=page, per_page=per_page)
     elif category == 'tag':
         pagination = Tag.query.whooshee_search(q).paginate(page=page, per_page=per_page)
-    else:
-        pagination = Photo.query.whooshee_search(q).paginate(page=page, per_page=per_page)
+    elif category == 'objects':
+        # Objects-only search
+        stmt = select(Photo).filter(
+            Photo.detected_objects.isnot(None),
+            Photo.detected_objects.contains(f'"{q.lower()}"')
+        ).order_by(Photo.created_at.desc())
+        pagination = db.paginate(stmt, page=page, per_page=per_page)
+    else:  # category == 'photo' (default search)
+        # Enhanced search: combine photo description search AND object search
+        photo_results = Photo.query.whooshee_search(q).all()
+
+        # Also search in detected objects
+        all_photos_with_objects = db.session.scalars(
+            select(Photo).filter(Photo.detected_objects.isnot(None))
+        ).all()
+
+        object_matches = []
+        for photo in all_photos_with_objects:
+            if photo.detected_objects:
+                try:
+                    objects = json.loads(photo.detected_objects)
+                    if any(q.lower() in obj.lower() for obj in objects):
+                        object_matches.append(photo)
+                except json.JSONDecodeError:
+                    continue
+
+        # Combine results and remove duplicates
+        combined_results = list(set(photo_results + object_matches))
+
+        # Sort by creation date (newest first)
+        combined_results.sort(key=lambda x: x.created_at, reverse=True)
+
+        # Create simple pagination for combined results
+        class CombinedPagination:
+            def __init__(self, items, page=1, per_page=per_page):
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                self.items = items[start_idx:end_idx]
+                self.page = page
+                self.per_page = per_page
+                self.total = len(items)
+                self.pages = max(1, (len(items) + per_page - 1) // per_page)
+                self.has_prev = page > 1
+                self.has_next = page < self.pages
+                self.prev_num = page - 1 if self.has_prev else None
+                self.next_num = page + 1 if self.has_next else None
+
+            def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                """Generate page numbers for pagination similar to Flask-SQLAlchemy"""
+                last = self.pages
+                for num in range(1, last + 1):
+                    if num <= left_edge or \
+                        (self.page - left_current - 1 < num < self.page + right_current) or \
+                        num > last - right_edge:
+                        yield num
+
+        pagination = CombinedPagination(combined_results, page, per_page)
+        print(
+            f"Combined search found {len(combined_results)} total results ({len(photo_results)} from descriptions, {len(object_matches)} from objects)")
+
     results = pagination.items
-    return render_template('main/search.html', q=q, results=results, pagination=pagination, category=category)
+    return render_template('main/search.html', q=q, results=results, pagination=pagination,
+                           category=category)
 
 
 @main_bp.route('/notifications')
@@ -164,6 +225,7 @@ def upload():
 
         # Process image with ML
         ml_results = process_uploaded_image(image_path)
+        print(f"ML Results: {ml_results}")
 
         photo = Photo(
             filename=filename,
@@ -463,17 +525,3 @@ def delete_tag(photo_id, tag_id):
 
     flash('Tag deleted.', 'info')
     return redirect(url_for('.show_photo', photo_id=photo_id))
-
-
-@main_bp.route('/search')
-def search():
-    query = request.args.get('q', '').strip().lower()
-    photos = []
-
-    if query:
-        # Search in detected objects (stored as JSON)
-        photos = Photo.query.filter(
-            Photo.detected_objects.contains(f'"{query}"')
-        ).order_by(Photo.created_at.desc()).all()
-
-    return render_template('main/search.html', photos=photos, query=query)

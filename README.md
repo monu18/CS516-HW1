@@ -1,54 +1,87 @@
-# Moments
+# Moments - ML-Enhanced Photo Sharing Application
 
-A photo sharing social networking app built with Python and Flask. The example application for the book *[Python Web Development with Flask (2nd edition)](https://helloflask.com/en/book/4)* (《[Flask Web 开发实战（第 2 版）](https://helloflask.com/book/4)》).
+This is an enhanced version of the Moments photo sharing application with machine learning-powered features for accessibility and image search.
 
-Demo: http://moments.helloflask.com
+## New ML Features
 
-![Screenshot](demo.png)
+1. **Automatic Alt Text Generation**: Uses Azure Computer Vision API to generate descriptive alternative text for uploaded images
+2. **Object-Based Image Search**: Allows users to search for images by detected objects (e.g., "elephant", "dog", "car")
 
-## Installation
+## Setup Instructions
 
-Clone the repo:
+### Prerequisites
+- Python 3.8+
+- Azure Computer Vision API credentials
 
-```
-$ git clone https://github.com/greyli/moments
-$ cd moments
-```
+### Azure Computer Vision Setup
+1. Create an Azure account at [portal.azure.com](https://portal.azure.com)
+2. Create a Computer Vision resource (free tier available)
+3. Note your endpoint URL and API key
 
-Install dependencies with [PDM](https://pdm.fming.dev):
+### Installation
 
-```
-$ pdm install
-```
-
-> [!TIP]
-> If you don't have PDM installed, you can create a virtual environment with `venv` and install dependencies with `pip install -r requirements.txt`.
-
-To initialize the app, run the `flask init-app` command:
-
-```
-$ pdm run flask init-app
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/CS516-HW1.git
+cd CS516-HW1
 ```
 
-If you just want to try it out, generate fake data with `flask lorem` command then run the app:
-
-```
-$ pdm run flask lorem
-```
-
-It will create a test account:
-
-* email: `admin@helloflask.com`
-* password: `moments`
-
-Now you can run the app:
-
-```
-$ pdm run flask run
-* Running on http://127.0.0.1:5000/
+2. Create and activate virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-## License
+3. Install dependencies:
+```bash
+bash run_moments.sh
+```
 
-This project is licensed under the MIT License (see the
-[LICENSE](LICENSE) file for details).
+4. Create API configuration file:
+```bash
+touch api_config.py
+```
+
+Add your Azure credentials to `api_config.py`:
+```python
+# Azure Computer Vision API credentials
+AZURE_VISION_ENDPOINT = "https://your-resource-name.cognitiveservices.azure.com/"
+AZURE_VISION_KEY = "your-api-key-here"
+```
+
+### Running the Application
+
+```bash
+bash run_moments.sh
+```
+
+The application will be available at `http://localhost:5000`
+
+**Test Account:**
+- Email: admin@helloflask.com
+- Password: moments
+
+### Using ML Features
+
+1. **Upload images** at `/upload` - alt text will be automatically generated
+2. **Search by objects** using the search bar or Objects category
+3. **View alt text** by inspecting HTML img elements in browser developer tools
+
+## ML Implementation Details
+
+- **Alt text generation**: Images processed on upload with Azure Computer Vision
+- **Object detection**: Detected objects stored as JSON in database
+- **Combined search**: Default search includes both descriptions and detected objects
+- **Fallback handling**: Graceful degradation when API is unavailable
+
+## Security Notes
+
+- API credentials stored in `api_config.py` (not committed to git)
+- Credentials can alternatively be set as environment variables
+- File uploads validated for security
+
+## Dependencies
+
+Key additions for ML functionality:
+- `requests` - HTTP client for Azure API calls
+- Azure Computer Vision API - Image analysis service

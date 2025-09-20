@@ -7,6 +7,9 @@ This is an enhanced version of the Moments photo sharing application with machin
 1. **Automatic Alt Text Generation**: Uses Azure Computer Vision API to generate descriptive alternative text for uploaded images
 2. **Object-Based Image Search**: Allows users to search for images by detected objects (e.g., "elephant", "dog", "car")
 
+## Demo
+![Demo of the app](demo.png "App Demo")
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -55,7 +58,7 @@ AZURE_VISION_KEY = "your-api-key-here"
 bash run_moments.sh
 ```
 
-The application will be available at `http://localhost:5000`
+The application will be available at `http://localhost:5002`
 
 **Test Account:**
 - Email: admin@helloflask.com
